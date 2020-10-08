@@ -64,9 +64,6 @@ curve_intersect <- function(curve1, curve2, empirical=TRUE, domain=NULL) {
 
 
 ######## Curve fitting and phenology ------
-cl <- makeCluster(3)
-# registerDoParallel(cl)
-
 smM       <- matrix(nrow = nrow(snowList$crds), ncol = length(unique(snowList$year)))
 
 for(j in 1:nrow(smM)) {
@@ -104,7 +101,5 @@ for(j in 1:nrow(smM)) {
   
 }
 
-stopCluster(cl)
-
-snow <- list(crds = crds, dates = dates, smM = smM, snowModel = snowModel)
-save(snow, file = "snow_4km.RData")
+snow <- list(crds = crds, smM = smM)
+save(snow, file = "/home/slisovsk/Documents/btg_snowAK/tmp/snow_4km.RData")
