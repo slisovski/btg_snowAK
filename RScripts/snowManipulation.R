@@ -44,7 +44,7 @@ snowM <- do.call("cbind", pbmclapply(1:length(dates), function(x) {
     # cat(sprintf('\rDate %d of %d',
                 # i, length(dates)))
     
-    tab0 <- suppressWarnings(readLines(fls.gz[i]))
+    tab0 <- suppressWarnings(readLines(fls.gz[x]))
     ind  <- unlist(suppressWarnings(lapply(tab0, function(x) is.na(as.numeric(gsub(" ", "", x))))))
     tab  <- tab0[-which(ind)]
     

@@ -65,24 +65,24 @@ curve_intersect <- function(curve1, curve2, empirical=TRUE, domain=NULL) {
 
 
 ######## Curve fitting and phenology ------
-smM       <- matrix(nrow = nrow(snowRaw$crds), ncol = length(unique(format(snowRaw$dates, "%Y"))))
 
-for(j in 1:nrow(smM)) {
+smM <- do.call("rbind", pbmclapply(1:nrow(snowRaw$crds), function(j) {
 
-  cat(sprintf('\rLocation %d of %d',
-              j, nrow(smM)))
 
-  y <- ifelse(snowList$dat[j,]%in%c(4,165), 4, ifelse(snowList$dat[j,]%in%c(3,164), 3, snowList$dat[j,]))
+  # cat(sprintf('\rLocation %d of %d',
+              # j, nrow(smM)))
+
+  y <- ifelse(snowRaw$snow[j,]%in%c(4,165), 4, ifelse(snowRaw$snow[j,]%in%c(3,164), 3, snowRaw$snow[j,]))
 
   if(sum(!y%in%c(2,4)) < length(y)/5) {
 
-    tab0 <- data.frame(year = snowList$year,
+    tab0 <- data.frame(year = as.numeric(format(snowRaw$dates, "%Y")),
                        s    = ifelse(y%in%c(0,1), 0, ifelse(y==2, 0, 1)),
-                       doy = snowList$doi)
+                       doy =  as.numeric(format(snowRaw$dates, "%j")))
 
     spl <- split(tab0, f = as.character(tab0$year))
 
-    sm1 <- do.call("rbind", mclapply(spl, function(x) {
+    sm1 <- do.call("rbind", lapply(spl, function(x) {
 
       tab <- merge(data.frame(day = 1:365), data.frame(day = as.numeric(x[,3]), p = as.numeric(x[,2])), all.x = T)
 
@@ -94,15 +94,17 @@ for(j in 1:nrow(smM)) {
 
       cbind(year = median(as.numeric(as.numeric(as.character(x[,1])))), sm = sm)
 
-    }, mc.cores = 15))
+    }))
 
-    smM[j,] <- merge(data.frame(year = 2006:2020), as.data.frame(sm1), all.x = T)$sm
+    merge(data.frame(year = 2004:2020), as.data.frame(sm1), all.x = T)$sm
 
+  } else {
+    rep(NA, length(2004:2020))
   }
 
-}
+}, mc.cores = detectCores()-10))
 
-snow <- list(crds = crds, smM = smM)
+snow <- list(crds = snowRaw$crds, smM = smM)
 save(snow, file = "Results/snowMelt_4km.RData")
 load("Results/snowMelt_4km.RData")
 
