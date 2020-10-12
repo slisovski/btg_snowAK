@@ -1,4 +1,4 @@
-load("tmp/snowList.RData")
+load("Results/snowRaw_4km_2004_2020.RData")
 
 ######## Functions -----
 library(bbmle)
@@ -13,8 +13,8 @@ gauss.curve <- function(parms, tab) {
   fit2 <- 1 - exp(-((t[which(t==floor(parms$a1)):length(t)]-parms$a1)/parms$a2)^parms$a3)
   c(fit1, fit2[-1])
 }
+
 fitGauss <- function(tab) {
-  
   gauss.loglik <- function(a1, a2, a3, a4, a5) {
     fit <- gauss.curve(parms = list(a1=a1, a2=a2, a3=a3, a4=a4, a5=a5), tab)  
     fit <- ifelse(fit>0.999, 1-(1e-5), ifelse(fit<0.001, 1e-5, fit))
@@ -30,6 +30,7 @@ fitGauss <- function(tab) {
   
   coef(mle)
 } 
+
 curve_intersect <- function(curve1, curve2, empirical=TRUE, domain=NULL) {
   if (!empirical & missing(domain)) {
     stop("'domain' must be provided with non-empirical curves")
@@ -64,45 +65,45 @@ curve_intersect <- function(curve1, curve2, empirical=TRUE, domain=NULL) {
 
 
 ######## Curve fitting and phenology ------
-# smM       <- matrix(nrow = nrow(snowList$crds), ncol = length(unique(snowList$year)))
-# 
-# for(j in 1:nrow(smM)) {
-#   
-#   cat(sprintf('\rLocation %d of %d',
-#               j, nrow(smM)))
-#   
-#   y <- ifelse(snowList$dat[j,]%in%c(4,165), 4, ifelse(snowList$dat[j,]%in%c(3,164), 3, snowList$dat[j,]))
-#   
-#   if(sum(!y%in%c(2,4)) < length(y)/5) {
-#     
-#     tab0 <- data.frame(year = snowList$year, 
-#                        s    = ifelse(y%in%c(0,1), 0, ifelse(y==2, 0, 1)), 
-#                        doy = snowList$doi)
-#     
-#     spl <- split(tab0, f = as.character(tab0$year))
-#     
-#     sm1 <- do.call("rbind", mclapply(spl, function(x) {
-#       
-#       tab <- merge(data.frame(day = 1:365), data.frame(day = as.numeric(x[,3]), p = as.numeric(x[,2])), all.x = T)
-#       
-#       mle <- fitGauss(tab)
-#       fit <- gauss.curve(mle, tab)
-#       
-#       sm <- tryCatch(curve_intersect(data.frame(x = tab[,1], y = fit)[1:mle[1],], data.frame(x = tab[,1], y = 0.666))$x,
-#                      error = function(x) NA)
-#       
-#       cbind(year = median(as.numeric(as.numeric(as.character(x[,1])))), sm = sm)
-#       
-#     }, mc.cores = 15))
-#     
-#     smM[j,] <- merge(data.frame(year = 2006:2020), as.data.frame(sm1), all.x = T)$sm
-#     
-#   }
-#   
-# }
-# 
-# snow <- list(crds = crds, smM = smM)
-# save(snow, file = "Results/snowMelt_4km.RData")
+smM       <- matrix(nrow = nrow(snowRaw$crds), ncol = length(unique(format(snowRaw$dates, "%Y"))))
+
+for(j in 1:nrow(smM)) {
+
+  cat(sprintf('\rLocation %d of %d',
+              j, nrow(smM)))
+
+  y <- ifelse(snowList$dat[j,]%in%c(4,165), 4, ifelse(snowList$dat[j,]%in%c(3,164), 3, snowList$dat[j,]))
+
+  if(sum(!y%in%c(2,4)) < length(y)/5) {
+
+    tab0 <- data.frame(year = snowList$year,
+                       s    = ifelse(y%in%c(0,1), 0, ifelse(y==2, 0, 1)),
+                       doy = snowList$doi)
+
+    spl <- split(tab0, f = as.character(tab0$year))
+
+    sm1 <- do.call("rbind", mclapply(spl, function(x) {
+
+      tab <- merge(data.frame(day = 1:365), data.frame(day = as.numeric(x[,3]), p = as.numeric(x[,2])), all.x = T)
+
+      mle <- fitGauss(tab)
+      fit <- gauss.curve(mle, tab)
+
+      sm <- tryCatch(curve_intersect(data.frame(x = tab[,1], y = fit)[1:mle[1],], data.frame(x = tab[,1], y = 0.666))$x,
+                     error = function(x) NA)
+
+      cbind(year = median(as.numeric(as.numeric(as.character(x[,1])))), sm = sm)
+
+    }, mc.cores = 15))
+
+    smM[j,] <- merge(data.frame(year = 2006:2020), as.data.frame(sm1), all.x = T)$sm
+
+  }
+
+}
+
+snow <- list(crds = crds, smM = smM)
+save(snow, file = "Results/snowMelt_4km.RData")
 load("Results/snowMelt_4km.RData")
 
 
