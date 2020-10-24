@@ -8,10 +8,12 @@ library(mgcv)
 #### Snow
 load("Results/snowMelt_4km.RData")
 
-dat <- data.frame(lon = rep(snow$crds[,1], 13), lat = rep(snow$crds[,2], 13), 
-                  year = rep(2008:2020, each = nrow(snow$smM[,-c(1,2)])), 
-                  site = rep(1:nrow(snow$crds), 13),
-                  snow = c(snow$smM[,-c(1,2)]))
+dat <- data.frame(lon = rep(snow$crds[,1], 17), lat = rep(snow$crds[,2], 17), 
+                  year = rep(2004:2020, each = nrow(snow$smM)), 
+                  site = rep(1:nrow(snow$crds), 17),
+                  snow = c(snow$smM))
+
+dat <- subset(dat, year >= 2008)
 
 
 plot(dat$year, dat$snow)
@@ -24,7 +26,6 @@ confint(lm, parm = "year")
 
 # mean(iav, na.rm = T)
 # sd(iav, na.rm = T)
-
 
 
 ##### north
