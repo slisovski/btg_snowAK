@@ -1,0 +1,286 @@
+---
+title: "Conklin et al. Trend Analyses"
+author: "Simeon Lisovski"
+date: "10/26/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(nlme)
+library(lmerTest)
+library(lme4)
+library(merTools)
+library(mgcv)
+```
+
+## Time sequence
+
+```{r}
+long_ts  <- 2008:2020
+short_ts <- 2008:2014 
+```
+
+## Data
+
+```{r}
+load("Results/snowMelt_4km.RData")
+load("Results/eviStart_4km.RData")
+
+dat <- data.frame(lon = rep(snow$crds[,1], 17), lat = rep(snow$crds[,2], 17), 
+                  year = rep(2004:2020, each = nrow(snow$crds)), 
+                  site = rep(1:nrow(snow$crds), 17),
+                  snow = c(snow$smM),
+                  evi  = c(envOut$evi))
+
+dat <- subset(dat, year>=min(long_ts))
+```
+
+## Snowmelt trends
+
+### Overall trend
+
+```{r}
+lm <- lmer(snow ~ year + (1|site), data = dat, na.action = na.omit)
+cbind(Median = round(summary(lm)$coefficients[2,1], 3), confint(lm, parm = "year"))
+```
+
+### South
+
+```{r}
+lmS <- lmer(snow ~ year + (1|site), data = dat[dat$lat<64,], na.action = na.omit)
+cbind(Median = round(summary(lmS)$coefficients[2,1], 3), confint(lmS, parm = "year"))
+```
+
+### North
+
+```{r}
+lmN <- lmer(snow ~ year + (1|site), data = dat[dat$lat>64,], na.action = na.omit)
+cbind(Median = round(summary(lmN)$coefficients[2,1], 3), confint(lmN, parm = "year"))
+```
+
+```{r, echo = FALSE, fig.width=7, fig.height=10}
+opar <- par(mfrow = c(3,1), mar = c(2,2,4,1), oma = c(3,3,1,1))
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(snow$smM[,2004:2020>=min(long_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("skyblue", alpha.f = 0.75), border = NA)
+lines(dats[,1], dats[,3], lwd = 4)
+
+newdat  <- data.frame(year = long_ts)
+mm      <- model.matrix(~year,newdat)
+
+newdat$y1 <- mm%*%fixef(lm)
+with(newdat, lines(year, y1, col = "black", lty = 2, lwd = 2.5))
+
+mtext("a) Overall", 3, at = 2007.5, line = 2, cex = 1.3)
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(snow$smM[snow$crds[,2]>64,2004:2020>=min(long_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("blue", alpha.f = 0.35), border = NA)
+lines(dats[,1], dats[,3], lwd = 4, col = "darkblue")
+
+newdat$yN <- mm%*%fixef(lmN)
+with(newdat, lines(year, yN, col = "darkblue", lty = 2, lwd = 1.5))
+
+mtext("b) North", 3, at = 2007.5, line = 2, cex = 1.3)
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(snow$smM[snow$crds[,2]<64,2004:2020>=min(long_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("blue", alpha.f = 0.15), border = NA)
+lines(dats[,1], dats[,3], lwd = 4, col = "blue")
+
+newdat$yS <- mm%*%fixef(lmS)
+with(newdat, lines(year, yS, col = "blue", lty = 2, lwd = 1.5))
+
+mtext("c) South", 3, at = 2007.5, line = 2, cex = 1.3)
+
+par(opar)
+```
+
+
+### Geolocator Trend (2008:2014)
+
+```{r}
+lm_s <- lmer(snow ~ year + (1|site), data = dat[dat$year<=2014,], na.action = na.omit)
+cbind(Median = round(summary(lm_s)$coefficients[2,1], 3), confint(lm_s, parm = "year"))
+```
+
+### South
+
+```{r}
+lmS_s <- lmer(snow ~ year + (1|site), data = dat[dat$year<=2014 & dat$lat<64,], na.action = na.omit)
+cbind(Median = round(summary(lmS_s)$coefficients[2,1], 3), confint(lmS_s, parm = "year"))
+```
+
+### North
+
+```{r}
+lmN_s <- lmer(snow ~ year + (1|site), data = dat[dat$year<=2014 & dat$lat>64,], na.action = na.omit)
+cbind(Median = round(summary(lmN_s)$coefficients[2,1], 3), confint(lmN_s, parm = "year"))
+```
+
+```{r, echo = FALSE, fig.width=7, fig.height=10}
+opar <- par(mfrow = c(3,1), mar = c(2,2,4,1), oma = c(3,3,1,1))
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(snow$smM[,2004:2020>=min(long_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("skyblue", alpha.f = 0.75), border = NA)
+lines(dats[,1], dats[,3], lwd = 4)
+
+newdat  <- data.frame(year = short_ts)
+mm      <- model.matrix(~year,newdat)
+
+newdat$y1_s <- mm%*%fixef(lm_s)
+with(newdat, lines(year, y1_s, col = "black", lty = 2, lwd = 2.5))
+
+mtext("a) Overall", 3, at = 2007.5, line = 2, cex = 1.3)
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(snow$smM[snow$crds[,2]>64,2004:2020>=min(short_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("blue", alpha.f = 0.35), border = NA)
+lines(dats[,1], dats[,3], lwd = 4, col = "darkblue")
+
+newdat$yN_s <- mm%*%fixef(lmN_s)
+with(newdat, lines(year, yN_s, col = "darkblue", lty = 2, lwd = 1.5))
+
+mtext("b) North", 3, at = 2007.5, line = 2, cex = 1.3)
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(snow$smM[snow$crds[,2]<64,2004:2020>=min(long_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("blue", alpha.f = 0.15), border = NA)
+lines(dats[,1], dats[,3], lwd = 4, col = "blue")
+
+newdat$yS_s <- mm%*%fixef(lmS_s)
+with(newdat, lines(year, yS_s, col = "blue", lty = 2, lwd = 1.5))
+
+mtext("c) South", 3, at = 2007.5, line = 2, cex = 1.3)
+
+par(opar)
+```
+
+
+## NDVI trends
+
+### Overall trend
+
+```{r}
+lm <- lmer(evi ~ year + (1|site), data = dat, na.action = na.omit)
+cbind(Median = round(summary(lm)$coefficients[2,1], 3), confint(lm, parm = "year"))
+```
+
+### South
+
+```{r}
+lmS <- lmer(evi ~ year + (1|site), data = dat[dat$lat<64,], na.action = na.omit)
+cbind(Median = round(summary(lmS)$coefficients[2,1], 3), confint(lmS, parm = "year"))
+```
+
+### North
+
+```{r}
+lmN <- lmer(evi ~ year + (1|site), data = dat[dat$lat>64,], na.action = na.omit)
+cbind(Median = round(summary(lmN)$coefficients[2,1], 3), confint(lmN, parm = "year"))
+```
+
+```{r, echo = FALSE, fig.width=7, fig.height=10}
+opar <- par(mfrow = c(3,1), mar = c(2,2,4,1), oma = c(3,3,1,1))
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(envOut$evi[,2004:2020>=min(long_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("seagreen", alpha.f = 0.75), border = NA)
+lines(dats[,1], dats[,3], lwd = 4)
+
+newdat  <- data.frame(year = long_ts)
+mm      <- model.matrix(~year,newdat)
+
+newdat$y1 <- mm%*%fixef(lm)
+with(newdat, lines(year, y1, col = "black", lty = 2, lwd = 2.5))
+
+mtext("a) Overall", 3, at = 2007.5, line = 2, cex = 1.3)
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(envOut$evi[envOut$crds[,2]>64,2004:2020>=min(long_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("darkgreen", alpha.f = 0.35), border = NA)
+lines(dats[,1], dats[,3], lwd = 4, col = "darkgreen")
+
+newdat$yN <- mm%*%fixef(lmN)
+with(newdat, lines(year, yN, col = "darkgreen", lty = 2, lwd = 1.5))
+
+mtext("b) North", 3, at = 2007.5, line = 2, cex = 1.3)
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(envOut$evi[envOut$crds[,2]<64,2004:2020>=min(long_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("darkolivegreen4", alpha.f = 0.25), border = NA)
+lines(dats[,1], dats[,3], lwd = 4, col = "darkolivegreen4")
+
+newdat$yS <- mm%*%fixef(lmS)
+with(newdat, lines(year, yS, col = "darkolivegreen4", lty = 2, lwd = 1.5))
+
+mtext("c) South", 3, at = 2007.5, line = 2, cex = 1.3)
+
+par(opar)
+```
+
+
+### Geolocator Trend (2008:2014)
+
+```{r}
+lm_s <- lmer(evi ~ year + (1|site), data = dat[dat$year<=2014,], na.action = na.omit)
+cbind(Median = round(summary(lm_s)$coefficients[2,1], 3), confint(lm_s, parm = "year"))
+```
+
+### South
+
+```{r}
+lmS_s <- lmer(evi ~ year + (1|site), data = dat[dat$year<=2014 & dat$lat<64,], na.action = na.omit)
+cbind(Median = round(summary(lmS_s)$coefficients[2,1], 3), confint(lmS_s, parm = "year"))
+```
+
+### North
+
+```{r}
+lmN_s <- lmer(evi ~ year + (1|site), data = dat[dat$year<=2014 & dat$lat>64,], na.action = na.omit)
+cbind(Median = round(summary(lmN_s)$coefficients[2,1], 3), confint(lmN_s, parm = "year"))
+```
+
+```{r, echo = FALSE, fig.width=7, fig.height=10}
+opar <- par(mfrow = c(3,1), mar = c(2,2,4,1), oma = c(3,3,1,1))
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(envOut$evi[,2004:2020>=min(long_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("seagreen", alpha.f = 0.75), border = NA)
+lines(dats[,1], dats[,3], lwd = 4)
+
+newdat  <- data.frame(year = short_ts)
+mm      <- model.matrix(~year,newdat)
+
+newdat$y1_s <- mm%*%fixef(lm_s)
+with(newdat, lines(year, y1_s, col = "black", lty = 2, lwd = 2.5))
+
+mtext("a) Overall", 3, at = 2007.5, line = 2, cex = 1.3)
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(envOut$evi[envOut$crds[,2]>64,2004:2020>=min(short_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("darkgreen", alpha.f = 0.35), border = NA)
+lines(dats[,1], dats[,3], lwd = 4, col = "darkgreen")
+
+newdat$yN_s <- mm%*%fixef(lmN_s)
+with(newdat, lines(year, yN_s, col = "darkgreen", lty = 2, lwd = 1.5))
+
+mtext("b) North", 3, at = 2007.5, line = 2, cex = 1.3)
+
+plot(NA, xlim = range(long_ts), ylim = c(100, 200), las = 1, ylab = "", xlab = "")
+dats <- cbind(long_ts, t(apply(envOut$evi[envOut$crds[,2]<64,2004:2020>=min(long_ts)], 2, function(x) quantile(x, probs = c(0.025, 0.5, 0.975), na.rm = T))))
+polygon(c(dats[,1], rev(dats[,1])), c(dats[,2], rev(dats[,4])), col = adjustcolor("darkolivegreen4", alpha.f = 0.15), border = NA)
+lines(dats[,1], dats[,3], lwd = 4, col = "darkolivegreen4")
+
+newdat$yS_s <- mm%*%fixef(lmS_s)
+with(newdat, lines(year, yS_s, col = "darkolivegreen4", lty = 2, lwd = 1.5))
+
+mtext("c) South", 3, at = 2007.5, line = 2, cex = 1.3)
+
+par(opar)
+```
